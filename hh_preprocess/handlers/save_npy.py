@@ -9,23 +9,14 @@ logger = logging.getLogger(__name__)
 
 
 class SaveNpyHandler(Handler):
-    """Сохранить матрицу признаков и таргет в файлы `x_data.npy` и `y_data.npy`."""
+    """Сохранить матрицу признаков, таргет и список колонок."""
 
     def _handle(self, ctx: PipelineContext) -> PipelineContext:
-        """Сохранить `ctx.X` и `ctx.y` в формате NumPy `.npy`.
-
-        Файлы сохраняются в директорию `ctx.output_dir` с именами:
-        - `x_data.npy` — матрица признаков;
-        - `y_data.npy` — таргет.
-
-        Аргументы:
-            ctx: Контекст пайплайна.
-
-        Возвращает:
-            Контекст пайплайна (без изменения данных).
-
-        Исключения:
-            ValueError: Если `ctx.X` или `ctx.y` не подготовлены.
+        """
+        Сохраняет:
+        - x_data.npy (матрица)
+        - y_data.npy (таргет)
+        - columns.txt (список имен колонок в порядке, соответствующем x_data)
         """
         if ctx.X is None or ctx.y is None:
             raise ValueError("X/y not prepared")
@@ -34,5 +25,15 @@ class SaveNpyHandler(Handler):
         out_y = ctx.output_dir / "y_data.npy"
         np.save(out_x, ctx.X)
         np.save(out_y, ctx.y)
+
+        if ctx.feature_names:
+            out_cols = ctx.output_dir / "columns.txt"
+            try:
+                with open(out_cols, "w", encoding="utf-8") as f:
+                    for col in ctx.feature_names:
+                        f.write(f"{col}\n")
+                logger.info(f"Список колонок сохранен: {out_cols}")
+            except Exception as e:
+                logger.warning(f"Не удалось сохранить список колонок: {e}")
 
         return ctx

@@ -28,10 +28,12 @@ class OneHotEncodeHandler(Handler):
     _NUMERIC_COLS = (
         "age",
         "education_year",
-        "total_experience_months",
         "resume_days_since_update",
-        "target_salary_rub",
+        "target_level" "description_len_log",
+        "age_sq",
     )
+
+    _LEAK_COLS = ["total_experience_months", "experience_sq", "target_salary_rub"]
 
     def _handle(self, ctx: PipelineContext) -> PipelineContext:
         """Подготовить DataFrame к сохранению в numpy-массивы через one-hot кодирование для категориальных фич.
@@ -56,11 +58,18 @@ class OneHotEncodeHandler(Handler):
             if any(h in cl for h in _RAW_TEXT_COL_HINTS):
                 drop_cols.append(c)
 
-        drop_cols = [c for c in drop_cols if c != "target_salary_rub"]
+        drop_cols = [
+            c for c in drop_cols if c not in ["target_salary_rub", "target_level"]
+        ]
 
         if drop_cols:
             df = df.drop(columns=drop_cols, errors="ignore")
             logger.info("Dropped raw columns: %d", len(drop_cols))
+
+        leaks_to_drop = [c for c in self._LEAK_COLS if c in df.columns]
+        if leaks_to_drop:
+            logger.info(f"Dropping target leaks: {leaks_to_drop}")
+            df = df.drop(columns=leaks_to_drop)
 
         for col in self._NUMERIC_COLS:
             if col in df.columns:

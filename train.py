@@ -2,27 +2,19 @@ import argparse
 import json
 import logging
 import sys
-import warnings
 from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.exceptions import ConvergenceWarning
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+import seaborn as sns
+from sklearn.metrics import classification_report, f1_score
 from sklearn.model_selection import GridSearchCV, train_test_split
 
-from models import (
-    ElasticNetRegressor,
-    LassoRegressor,
-    LinearRegressor,
-    RandomForestWrapper,
-    RidgeRegressor,
-    XGBoostWrapper,
-)
 from models.base import BaseModel
-
-warnings.filterwarnings("ignore", category=UserWarning)
-warnings.filterwarnings("ignore", category=ConvergenceWarning)
+from models.classifiers import (LogisticRegressionWrapper,
+                                RandomForestClassifierWrapper,
+                                XGBClassifierWrapper)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,26 +23,58 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+CLASS_NAMES = ["Junior", "Middle", "Senior"]
+
 
 def load_data(x_path: Path, y_path: Path) -> tuple[np.ndarray, np.ndarray]:
-    """Загрузить данные из .npy файлов.
+    """Загрузить матрицы признаков и таргета из .npy файлов.
 
     Аргументы:
-        x_path: Путь к файлу с признаками.
-        y_path: Путь к файлу с целевой переменной.
+        x_path: Путь к файлу с матрицей признаков (X).
+        y_path: Путь к файлу с вектором целевой переменной (y).
 
     Возвращает:
-        Кортеж из массивов numpy (X, y).
+        Кортеж (X, y), где X — массив float32, y — массив int.
+
+    Исключения:
+        FileNotFoundError: Если один из файлов не найден.
     """
     if not x_path.exists() or not y_path.exists():
-        raise FileNotFoundError(
-            "Файлы данных не найдены. Сначала запустите пайплайн обработки."
-        )
+        raise FileNotFoundError("Файлы данных не найдены.")
 
-    logger.info("Загрузка данных: X=%s, y=%s", x_path, y_path)
     X = np.load(x_path)
     y = np.load(y_path)
+
+    y = y.astype(int)
+
+    logger.info(f"Данные загружены: X shape={X.shape}, y shape={y.shape}")
     return X, y
+
+
+def plot_class_balance(y: np.ndarray, output_dir: Path) -> None:
+    """Построить и сохранить график распределения классов.
+
+    Создает файл `class_balance.png` в указанной директории.
+
+    Аргументы:
+        y: Вектор целевой переменной.
+        output_dir: Директория для сохранения графика.
+    """
+    unique, counts = np.unique(y, return_counts=True)
+
+    x_labels = [CLASS_NAMES[i] for i in unique]
+
+    plt.figure(figsize=(8, 6))
+    sns.barplot(x=x_labels, y=counts, hue=x_labels, legend=False, palette="viridis")
+    plt.title("Баланс классов (Junior / Middle / Senior)")
+    plt.xlabel("Уровень")
+    plt.ylabel("Количество резюме")
+
+    out_path = output_dir / "class_balance.png"
+    plt.savefig(out_path)
+    plt.close()
+
+    logger.info(f"График баланса классов сохранен: {out_path}")
 
 
 def tune_and_fit(
@@ -60,51 +84,42 @@ def tune_and_fit(
     y_train: np.ndarray,
     param_grid: dict[str, list[Any]] | None = None,
 ) -> Any:
-    """Подобрать гиперпараметры (GridSearch) и обучить модель.
+    """Обучить модель с подбором гиперпараметров (GridSearch).
+
+    Если `param_grid` передан, выполняется кросс-валидация (CV=3)
+    с оптимизацией метрики `f1_weighted`.
 
     Аргументы:
-        name: Имя модели (для логов).
-        model_wrapper: Обертка модели.
-        X_train: Обучающая выборка.
-        y_train: Целевая переменная.
-        param_grid: Сетка параметров для перебора.
+        name: Название модели (для логов).
+        model_wrapper: Экземпляр обертки модели (наследник BaseModel).
+        X_train: Обучающая выборка признаков.
+        y_train: Обучающая выборка таргета.
+        param_grid: Словарь гиперпараметров для перебора.
 
     Возвращает:
-        Лучший обученный эстиматор (sklearn/xgboost).
+        Лучший оценщик (Best Estimator) из библиотеки sklearn/xgboost.
     """
+
     sklearn_model = model_wrapper._model
 
     if not param_grid:
-        logger.info("Обучение %s без подбора параметров...", name)
+        logger.info(f"Обучение {name} (без тюнинга)...")
         sklearn_model.fit(X_train, y_train)
         return sklearn_model
 
-    logger.info(
-        "Подбор гиперпараметров для %s (grid size: %d)...",
-        name,
-        _count_grid_size(param_grid),
-    )
-
+    logger.info(f"Запуск GridSearch для {name}...")
     grid = GridSearchCV(
         estimator=sklearn_model,
         param_grid=param_grid,
-        scoring="neg_mean_squared_error",
-        cv=4,
+        scoring="f1_weighted",
+        cv=3,
         n_jobs=-1,
         verbose=1,
     )
     grid.fit(X_train, y_train)
 
-    logger.info("Лучшие параметры для %s: %s", name, grid.best_params_)
+    logger.info(f"Лучшие параметры для {name}: {grid.best_params_}")
     return grid.best_estimator_
-
-
-def _count_grid_size(grid: dict) -> int:
-    """Вспомогательная функция для подсчета количества комбинаций в сетке."""
-    count = 1
-    for v in grid.values():
-        count *= len(v)
-    return count
 
 
 def evaluate_model(
@@ -116,44 +131,56 @@ def evaluate_model(
 ) -> dict[str, float]:
     """Оценить качество модели на тестовой выборке и сохранить результаты.
 
+    Сохраняет:
+    1. Сериализованную модель (.pkl).
+    2. Текстовый отчет Classification Report (.txt).
+
     Аргументы:
-        name: Имя модели.
-        model_wrapper: Обученная модель.
-        X_test: Тестовые признаки.
-        y_test: Тестовые метки.
-        output_dir: Папка для сохранения модели.
+        name: Название модели.
+        model_wrapper: Обученная обертка модели.
+        X_test: Тестовая выборка признаков.
+        y_test: Тестовая выборка таргета.
+        output_dir: Директория для сохранения артефактов.
 
     Возвращает:
-        Словарь с метриками (R2, MAE, MSE, RMSE).
+        Словарь с метриками (f1_weighted и детализированный отчет).
     """
     y_pred = model_wrapper.predict(X_test)
 
-    r2 = r2_score(y_test, y_pred)
-    mae = mean_absolute_error(y_test, y_pred)
-    mse = mean_squared_error(y_test, y_pred)
-    rmse = np.sqrt(mse)
-
-    logger.info(
-        "RESULT: %-10s | R2: %.4f | MAE: %.0f | RMSE: %.0f", name, r2, mae, rmse
+    report_dict = classification_report(
+        y_test, y_pred, target_names=CLASS_NAMES, output_dict=True
     )
+    report_str = classification_report(y_test, y_pred, target_names=CLASS_NAMES)
+
+    logger.info(f"\n--- Report for {name} ---\n{report_str}")
+
+    f1 = f1_score(y_test, y_pred, average="weighted")
 
     model_path = output_dir / f"{name.lower()}_model.pkl"
     model_wrapper.save(model_path)
 
-    return {"r2": r2, "mae": mae, "mse": mse, "rmse": rmse}
+    report_path = output_dir / f"{name.lower()}_report.txt"
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write(report_str)
+
+    return {"f1_weighted": f1, "detail": report_dict}
 
 
 def main() -> None:
-    """Основная функция запуска эксперимента обучения.
+    """Точка входа скрипта обучения.
 
-    1. Загружает данные.
-    2. Делит их на train/test.
-    3. Перебирает список моделей (Linear, Ridge, Lasso, ElasticNet, RF, XGBoost).
-    4. Запускает подбор гиперпараметров для каждой.
-    5. Сохраняет метрики и лучшую модель в папку resources.
+    1. Загружает подготовленные данные.
+    2. Строит график баланса классов.
+    3. Делит данные на train/test.
+    4. Запускает цикл обучения для списка моделей.
+    5. Выбирает лучшую модель по F1-weighted и сохраняет её как `best_model.pkl`.
     """
-    parser = argparse.ArgumentParser(description="Обучение моделей.")
-    parser.add_argument("data_dir", type=Path, help="Папка с x_data.npy и y_data.npy")
+    parser = argparse.ArgumentParser(
+        description="Скрипт обучения моделей классификации."
+    )
+    parser.add_argument(
+        "data_dir", type=Path, help="Папка с файлами x_data.npy и y_data.npy"
+    )
     args = parser.parse_args()
 
     x_path = args.data_dir / "x_data.npy"
@@ -164,84 +191,77 @@ def main() -> None:
 
     try:
         X, y = load_data(x_path, y_path)
-    except FileNotFoundError as e:
-        logger.error(e)
-        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Ошибка загрузки данных: {e}")
+        return
 
+    plot_class_balance(y, resources_dir)
+
+    logger.info("Разделение данных на train/test (80/20)...")
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+        X, y, test_size=0.2, random_state=42, stratify=y
     )
 
-    alphas_grid = np.logspace(-3, 3, 10).tolist()
-
     models_config = [
-        ("Linear", LinearRegressor(), None),
-        (
-            "Ridge",
-            RidgeRegressor(),
-            {"alpha": alphas_grid, "solver": ["auto", "svd", "cholesky", "lsqr"]},
-        ),
-        (
-            "Lasso",
-            LassoRegressor(),
-            {"alpha": alphas_grid, "selection": ["cyclic", "random"]},
-        ),
-        (
-            "ElasticNet",
-            ElasticNetRegressor(),
-            {"alpha": alphas_grid, "l1_ratio": [0.1, 0.5, 0.9]},
-        ),
+        ("LogisticRegression", LogisticRegressionWrapper(), {"C": [0.1, 1.0, 10.0]}),
         (
             "RandomForest",
-            RandomForestWrapper(),
-            {"n_estimators": [100], "max_depth": [10, 20, None]},
+            RandomForestClassifierWrapper(),
+            {
+                "n_estimators": [100],
+                "max_depth": [20],
+                "min_samples_leaf": [4],
+                "bootstrap": [True],
+            },
         ),
         (
             "XGBoost",
-            XGBoostWrapper(),
+            XGBClassifierWrapper(),
             {
-                "n_estimators": [1000, 3000],
-                "max_depth": [6, 9],
-                "learning_rate": [0.1, 0.2],
+                "n_estimators": [1500],
+                "learning_rate": [0.1],
+                "max_depth": [6],
+                "colsample_bytree": [0.6],
+                "subsample": [0.8],
+                "reg_alpha": [0],
+                "min_child_weight": [3],
             },
         ),
     ]
 
-    metrics_report = {}
     best_name = None
-    best_rmse = float("inf")
-    best_model_wrapper = None
-
-    logger.info("Начало эксперимента с расширенным поиском...")
+    best_f1 = 0.0
+    best_wrapper = None
+    metrics_all = {}
 
     for name, wrapper, params in models_config:
-        if name in ["Lasso", "ElasticNet"]:
-            wrapper._model.max_iter = 1000
-            wrapper._model.tol = 1e-3
-
         try:
             best_est = tune_and_fit(name, wrapper, X_train, y_train, params)
+
             wrapper._model = best_est
+
+            metrics = evaluate_model(name, wrapper, X_test, y_test, resources_dir)
+            metrics_all[name] = metrics
+
+            if metrics["f1_weighted"] > best_f1:
+                best_f1 = metrics["f1_weighted"]
+                best_name = name
+                best_wrapper = wrapper
+
         except Exception as e:
-            logger.error(f"Ошибка при обучении {name}: {e}")
-            continue
+            logger.error(f"Ошибка при обучении модели {name}: {e}")
 
-        metrics = evaluate_model(name, wrapper, X_test, y_test, resources_dir)
-        metrics_report[name] = metrics
+    summary_path = resources_dir / "metrics_summary.json"
+    with open(summary_path, "w", encoding="utf-8") as f:
+        json.dump(metrics_all, f, indent=4, ensure_ascii=False)
 
-        if metrics["rmse"] < best_rmse:
-            best_rmse = metrics["rmse"]
-            best_name = name
-            best_model_wrapper = wrapper
+    logger.info(f"Сводка метрик сохранена в {summary_path}")
 
-    with open(resources_dir / "metrics.json", "w", encoding="utf-8") as f:
-        json.dump(metrics_report, f, indent=4)
-
-    if best_model_wrapper:
-        logger.info(
-            f"Лучшая модель: {best_name} (RMSE: {best_rmse:.0f}) -> best_model.pkl"
-        )
-        best_model_wrapper.save(resources_dir / "best_model.pkl")
+    if best_wrapper:
+        logger.info(f"ЛУЧШАЯ МОДЕЛЬ: {best_name} (F1 Weighted: {best_f1:.4f})")
+        best_wrapper.save(resources_dir / "best_model.pkl")
+    else:
+        logger.warning("Не удалось обучить ни одну модель.")
 
 
 if __name__ == "__main__":

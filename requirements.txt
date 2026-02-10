@@ -3,3 +3,6 @@ pandas
 scikit-learn
 sentence-transformers
 xgboost
+matplotlib
+seaborn
+cupy-cuda12x

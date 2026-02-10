@@ -5,6 +5,7 @@ from .handlers.clear_control_chars import CleanControlCharsHandler
 from .handlers.deduplicate import DeduplicateHandler
 from .handlers.enrich_features import EnrichFeaturesHandler
 from .handlers.experience_skills import SkillFeaturesHandler
+from .handlers.filter_developers import FilterDevelopersHandler
 from .handlers.filter_salary_outliers import FilterSalaryOutliersHandler
 from .handlers.finalize_arrays import FinalizeArraysHandler
 from .handlers.group_city import CityGroupingHandler
@@ -21,6 +22,7 @@ from .handlers.parse_salary import ParseSalaryHandler
 from .handlers.parse_update import ParseResumeUpdateHandler
 from .handlers.save_npy import SaveNpyHandler
 from .handlers.standardize_numeric import StandardizeNumericHandler
+from .handlers.target_level import TargetLevelHandler
 
 
 def build_pipeline() -> Handler:
@@ -45,10 +47,12 @@ def build_pipeline() -> Handler:
         ParseEducationHandler(),
         ParseResumeUpdateHandler(),
         ParseAutoHandler(),
-        JobCategoryHandler(),
         SkillFeaturesHandler(),
-        BertEmbeddingHandler(vector_size=25),
+        JobCategoryHandler(),
+        FilterDevelopersHandler(),
+        BertEmbeddingHandler(vector_size=256),
         EnrichFeaturesHandler(),
+        TargetLevelHandler(),
         StandardizeNumericHandler(),
         OneHotEncodeHandler(),
         FinalizeArraysHandler(),

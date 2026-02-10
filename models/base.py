@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
 import pickle
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
@@ -74,5 +74,5 @@ class BaseModel(ABC):
         """
         return {
             "coef": self._model.coef_.tolist(),
-            "intercept": float(self._model.intercept_)
+            "intercept": float(self._model.intercept_),
         }

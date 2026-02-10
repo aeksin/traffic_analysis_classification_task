@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 
 import numpy as np
 import pandas as pd
@@ -54,10 +55,12 @@ class BertEmbeddingHandler(Handler):
         model = SentenceTransformer(self.model_name)
         model.max_seq_length = 256
 
-        texts = df[exp_col].fillna("").astype(str).tolist()
+        raw_texts = df[exp_col].fillna("").astype(str).tolist()
+
+        clean_texts = [re.sub(r"\d+", "", t) for t in raw_texts]
 
         embeddings = model.encode(
-            texts,
+            clean_texts,
             show_progress_bar=True,
             batch_size=64,
             normalize_embeddings=True,

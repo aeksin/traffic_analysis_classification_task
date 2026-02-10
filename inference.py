@@ -9,14 +9,9 @@ from typing import List
 import numpy as np
 
 try:
-    from models import (
-        ElasticNetRegressor,
-        LassoRegressor,
-        LinearRegressor,
-        RandomForestWrapper,
-        RidgeRegressor,
-        XGBoostWrapper,
-    )
+    from models.classifiers import (LogisticRegressionWrapper,
+                                    RandomForestClassifierWrapper,
+                                    XGBClassifierWrapper)
 except ImportError as e:
     print(f"[CRITICAL] Не удалось импортировать классы моделей: {e}", file=sys.stderr)
     print(
@@ -32,9 +27,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger("inference")
 
+ID_TO_LABEL = {0: "Junior", 1: "Middle", 2: "Senior"}
+
 
 class InferenceService:
-    """Сервис для загрузки модели и выполнения предсказаний."""
+    """Сервис для загрузки модели и выполнения классификации (Junior/Middle/Senior)."""
 
     def __init__(self, resources_dir: Path = None):
         """
@@ -72,15 +69,15 @@ class InferenceService:
         except Exception as e:
             raise RuntimeError(f"Ошибка при десериализации модели: {e}")
 
-    def predict(self, x_path: Path) -> List[float]:
+    def predict(self, x_path: Path) -> List[str]:
         """
-        Выполняет предсказание на основе файла с признаками.
+        Выполняет предсказание уровня специалиста.
 
         Аргументы:
             x_path: Путь к .npy файлу с матрицей признаков.
 
         Возвращает:
-            Список предсказанных зарплат.
+            Список строк-меток (Junior, Middle, Senior).
         """
         if not x_path.exists():
             raise FileNotFoundError(f"Файл данных не найден: {x_path}")
@@ -91,20 +88,22 @@ class InferenceService:
         except Exception as e:
             raise ValueError(f"Не удалось прочитать .npy файл: {e}")
 
-        logger.info(f"Запуск инференса для {X.shape[0]} объектов...")
+        logger.info(f"Запуск классификации для {X.shape[0]} объектов...")
 
         try:
-            predictions = self._model.predict(X)
+            predictions_int = self._model.predict(X)
         except Exception as e:
             raise RuntimeError(f"Ошибка при выполнении predict: {e}")
 
-        return predictions.tolist()
+        predictions_str = [ID_TO_LABEL.get(int(p), "Unknown") for p in predictions_int]
+
+        return predictions_str
 
 
 def main():
     """Точка входа CLI."""
     parser = argparse.ArgumentParser(
-        description="Инференс модели зарплат (выводит список float в stdout)."
+        description="Классификация уровня (выводит список Junior/Middle/Senior в stdout)."
     )
     parser.add_argument(
         "x_path", type=Path, help="Путь к файлу x_data.npy (матрица признаков)."
