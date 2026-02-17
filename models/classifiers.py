@@ -18,15 +18,15 @@ except ImportError:
 class LogisticRegressionWrapper(BaseModel):
     """Обертка для Логистической Регрессии."""
 
-    def __init__(self, C: float = 1.0) -> None:
+    def __init__(self, regularization_c: float = 1.0) -> None:
         """Инициализировать модель Логистической Регрессии.
 
         Аргументы:
-            C: Коэффициент обратной регуляризации (меньше -> сильнее регуляризация).
+            regularization_c: Коэффициент обратной регуляризации (бывший C).
         """
         super().__init__(
             LogisticRegression(
-                C=C,
+                C=regularization_c,
                 max_iter=5000,
                 solver="lbfgs",
                 class_weight="balanced",
@@ -35,15 +35,7 @@ class LogisticRegressionWrapper(BaseModel):
         )
 
     def fit(self, X: np.ndarray, y: np.ndarray) -> "LogisticRegressionWrapper":
-        """Обучить классификатор.
-
-        Аргументы:
-            X: Матрица признаков.
-            y: Вектор целевой переменной.
-
-        Возвращает:
-            self.
-        """
+        """Обучить классификатор."""
         self._model.fit(X, y)
         return self
 
@@ -51,17 +43,27 @@ class LogisticRegressionWrapper(BaseModel):
 class RandomForestClassifierWrapper(BaseModel):
     """Обертка для Random Forest Classifier."""
 
-    def __init__(self, n_estimators: int = 100, max_depth: int | None = None) -> None:
+    def __init__(
+        self,
+        n_estimators: int = 100,
+        max_depth: int | None = None,
+        min_samples_leaf: int = 1,
+        max_features: str | float = "sqrt",
+    ) -> None:
         """Инициализировать модель Случайного Леса.
 
         Аргументы:
             n_estimators: Количество деревьев в лесу.
-            max_depth: Максимальная глубина дерева (для контроля переобучения).
+            max_depth: Максимальная глубина дерева.
+            min_samples_leaf: Минимальное число объектов в листе.
+            max_features: Число признаков для поиска лучшего разбиения.
         """
         super().__init__(
             RandomForestClassifier(
                 n_estimators=n_estimators,
                 max_depth=max_depth,
+                min_samples_leaf=min_samples_leaf,
+                max_features=max_features,
                 class_weight="balanced",
                 random_state=42,
                 n_jobs=-1,
