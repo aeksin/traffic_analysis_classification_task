@@ -50,7 +50,18 @@
     accuracy                           0.92      9282
    macro avg       0.88      0.82      0.85      9282
 weighted avg       0.92      0.92      0.92      9282
+```
+## Настройка окружения
+Проект использует стандартный `venv`.
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+## Запуск
 
+```bash
+python app.py path/to/hh.csv
 ```
 
 ### Интерпретация классов:

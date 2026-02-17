@@ -1,3 +1,5 @@
+"""Сборка и конфигурация цепочки обработчиков (Pipeline)."""
+
 from .handlers.base import Handler
 from .handlers.bert_embedding import BertEmbeddingHandler
 from .handlers.clean_cols import CleanColumnsHandler

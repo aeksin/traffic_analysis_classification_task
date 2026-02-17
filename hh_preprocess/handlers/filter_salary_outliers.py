@@ -1,3 +1,5 @@
+"""Обработчик фильтрации выбросов зарплаты по порогам и IQR."""
+
 from dataclasses import dataclass
 
 import pandas as pd
