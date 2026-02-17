@@ -1,4 +1,4 @@
-from __future__ import annotations
+"""Интерфейс командной строки для запуска процесса предобработки."""
 
 import argparse
 import logging

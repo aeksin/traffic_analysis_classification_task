@@ -1,3 +1,5 @@
+"""Базовый абстрактный класс для всех моделей машинного обучения в проекте."""
+
 import pickle
 from abc import ABC, abstractmethod
 from pathlib import Path

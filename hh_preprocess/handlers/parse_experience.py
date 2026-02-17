@@ -1,3 +1,5 @@
+"""Обработчик извлечения общего опыта работы (преобразование в месяцы)."""
+
 import logging
 import re
 
@@ -13,6 +15,38 @@ _EXP_COL = "Опыт (двойное нажатие для полной верс
 
 _YEARS_RE = re.compile(r"(\d+)\s*(?:год|года|лет|years|year)")
 _MONTHS_RE = re.compile(r"(\d+)\s*(?:месяц|месяца|месяцев|months|month)")
+
+
+def _parse_months(val: object) -> int:
+    """Преобразовать текстовое описание опыта в количество месяцев.
+
+    Аргументы:
+        val: Значение из колонки с опытом работы.
+
+    Возвращает:
+        Общее количество месяцев опыта (целое число, не меньше нуля).
+    """
+    t = safe_lower(val)
+    if not t:
+        return 0
+    if "нет опыта" in t or "no experience" in t:
+        return 0
+
+    years = 0
+    months = 0
+
+    my = _YEARS_RE.search(t)
+    mm = _MONTHS_RE.search(t)
+
+    if my:
+        years = int(my.group(1))
+    if mm:
+        months = int(mm.group(1))
+
+    total = years * 12 + months
+    if total < 0:
+        return 0
+    return total
 
 
 class ParseExperienceHandler(Handler):
@@ -56,39 +90,7 @@ class ParseExperienceHandler(Handler):
         else:
             exp_col = _EXP_COL
 
-        def parse_months(val: object) -> int:
-            """Преобразовать текстовое описание опыта в количество месяцев.
-
-            Из значения извлекаются числа для лет и месяцев, после чего считается
-            итог 'years * 12 + months'. Для пустых значений и формулировок вида
-            «нет опыта» возвращается '0'.
-
-            Аргументы:
-                val: Значение из колонки с опытом работы.
-
-            Возвращает:
-                Общее количество месяцев опыта (целое число, не меньше нуля).
-            """
-            t = safe_lower(val)
-            if not t:
-                return 0
-            if "нет опыта" in t or "no experience" in t:
-                return 0
-
-            years = 0
-            months = 0
-            my = _YEARS_RE.search(t)
-            mm = _MONTHS_RE.search(t)
-            if my:
-                years = int(my.group(1))
-            if mm:
-                months = int(mm.group(1))
-            total = years * 12 + months
-            if total < 0:
-                return 0
-            return total
-
-        df["total_experience_months"] = df[exp_col].map(parse_months).astype(int)
+        df["total_experience_months"] = df[exp_col].map(_parse_months).astype(int)
 
         ctx.df = df
         return ctx

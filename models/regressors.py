@@ -1,3 +1,5 @@
+"""Реализация регрессионных моделей (линейные, ансамбли) для предсказания зарплаты."""
+
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import ElasticNet, Lasso, LinearRegression, Ridge
@@ -106,19 +108,28 @@ class RandomForestWrapper(BaseModel):
     """Обертка для Random Forest."""
 
     def __init__(
-        self, n_estimators: int = 100, max_depth: int | None = None, n_jobs: int = -1
+        self,
+        n_estimators: int = 100,
+        max_depth: int | None = None,
+        min_samples_leaf: int = 1,
+        max_features: float | int = 1.0,
+        n_jobs: int = -1,
     ) -> None:
         """Инициализировать модель Случайного Леса.
 
         Аргументы:
             n_estimators: Количество деревьев в лесу.
-            max_depth: Максимальная глубина дерева (для контроля переобучения).
-            n_jobs: Количество ядер процессора для параллельного обучения (-1 = все).
+            max_depth: Максимальная глубина дерева.
+            min_samples_leaf: Минимальное количество образцов в листе.
+            max_features: Количество признаков для поиска лучшего разделения.
+            n_jobs: Количество ядер процессора (-1 = все).
         """
         super().__init__(
             RandomForestRegressor(
                 n_estimators=n_estimators,
                 max_depth=max_depth,
+                min_samples_leaf=min_samples_leaf,
+                max_features=max_features,
                 n_jobs=n_jobs,
                 random_state=42,
             )
@@ -147,9 +158,9 @@ class XGBoostWrapper(BaseModel):
         """Инициализировать модель Градиентного Бустинга (XGBoost).
 
         Аргументы:
-            n_estimators: Количество деревьев (итераций бустинга).
+            n_estimators: Количество деревьев.
             max_depth: Максимальная глубина дерева.
-            learning_rate: Скорость обучения (шаг градиентного спуска).
+            learning_rate: Скорость обучения.
         """
         super().__init__(
             XGBRegressor(

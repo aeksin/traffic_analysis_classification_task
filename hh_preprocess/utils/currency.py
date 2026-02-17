@@ -1,3 +1,5 @@
+"""Утилиты для работы с курсами валют ЦБ РФ и конвертации в рубли."""
+
 import json
 import logging
 from dataclasses import dataclass

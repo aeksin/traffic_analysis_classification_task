@@ -1,3 +1,5 @@
+"""Реализация моделей классификации (LogisticRegression, RF, XGBoost) для определения уровня (Junior/Middle/Senior)."""
+
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression

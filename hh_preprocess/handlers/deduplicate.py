@@ -1,3 +1,5 @@
+"""Обработчик удаления дубликатов строк в датасете."""
+
 from dataclasses import dataclass
 
 from ..context import PipelineContext

@@ -1,3 +1,5 @@
+"""Обработчик генерации обогащенных признаков."""
+
 import logging
 
 import numpy as np

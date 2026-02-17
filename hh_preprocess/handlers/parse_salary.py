@@ -1,5 +1,8 @@
+"""Обработчик парсинга зарплаты, определения валюты и конвертации в рубли."""
+
 import logging
 import re
+from typing import Optional
 
 import numpy as np
 
@@ -10,11 +13,36 @@ from .base import Handler
 
 logger = logging.getLogger(__name__)
 
-
 _SALARY_COL = "ЗП"
+_NUM_RE = re.compile(r"(\d[\d\s]*)")
+
+_CURRENCY_MAP = {
+    "руб": "RUB",
+    "rur": "RUB",
+    "rub": "RUB",
+    "₽": "RUB",
+    "usd": "USD",
+    "$": "USD",
+    "eur": "EUR",
+    "€": "EUR",
+    "kzt": "KZT",
+    "тенге": "KZT",
+    "byn": "BYN",
+    "бел": "BYN",
+    "uah": "UAH",
+    "грн": "UAH",
+    "uzs": "UZS",
+    "сум": "UZS",
+    "gel": "GEL",
+    "лари": "GEL",
+    "amd": "AMD",
+    "драм": "AMD",
+    "azn": "AZN",
+    "манат": "AZN",
+}
 
 
-def _detect_currency(s: str) -> str | None:
+def _detect_currency(s: str) -> Optional[str]:
     """Определить валюту по текстовому представлению зарплаты.
 
     По строке ищутся характерные маркеры валюты (например, `руб`, `usd`, `€`).
@@ -27,30 +55,10 @@ def _detect_currency(s: str) -> str | None:
         Код валюты (например, `RUB`, `USD`, `EUR`) или `None`, если определить не удалось.
     """
     t = s.lower()
-    if "руб" in t or "rur" in t or "rub" in t or "₽" in t:
-        return "RUB"
-    if "usd" in t or "$" in t:
-        return "USD"
-    if "eur" in t or "€" in t:
-        return "EUR"
-    if "kzt" in t or "тенге" in t:
-        return "KZT"
-    if "byn" in t or "бел" in t:
-        return "BYN"
-    if "uah" in t or "грн" in t:
-        return "UAH"
-    if "uzs" in t or "сум" in t:
-        return "UZS"
-    if "gel" in t or "лари" in t:
-        return "GEL"
-    if "amd" in t or "драм" in t:
-        return "AMD"
-    if "azn" in t or "манат" in t:
-        return "AZN"
+    for key, code in _CURRENCY_MAP.items():
+        if key in t:
+            return code
     return None
-
-
-_NUM_RE = re.compile(r"(\d[\d\s\u00a0]*)")
 
 
 def _extract_numbers(s: str) -> list[int]:
@@ -67,11 +75,44 @@ def _extract_numbers(s: str) -> list[int]:
     """
     nums: list[int] = []
     for m in _NUM_RE.finditer(s):
-        raw = m.group(1)
-        raw = raw.replace("\u00a0", " ").replace(" ", "")
+        raw = m.group(1).replace("\u00a0", " ").replace(" ", "")
         if raw.isdigit():
             nums.append(int(raw))
     return nums
+
+
+def _calculate_rub_salary(val: object, rates: dict) -> tuple[float, str]:
+    """Вычислить зарплату в рублях для одной строки."""
+    if not isinstance(val, str):
+        return np.nan, ""
+
+    s = normalize_spaces(val)
+    if not s:
+        return np.nan, ""
+
+    t = safe_lower(s)
+    if any(stop in t for stop in ["договор", "negotiable"]):
+        return np.nan, ""
+
+    cur = _detect_currency(s) or "RUB"
+    nums = _extract_numbers(s)
+
+    if not nums:
+        return np.nan, cur
+
+    amount = float(nums[0])
+    if len(nums) >= 2:
+        amount = (nums[0] + nums[1]) / 2.0
+
+    if "тыс" in t or "k" in t:
+        amount *= 1000.0
+
+    rate = rates.get(cur)
+    if rate is None:
+        return np.nan, cur
+
+    rub = amount * float(rate)
+    return (rub, cur) if rub > 0 else (np.nan, cur)
 
 
 class ParseSalaryHandler(Handler):
@@ -95,58 +136,19 @@ class ParseSalaryHandler(Handler):
             raise ValueError("DataFrame is not loaded")
 
         df = ctx.df.copy()
-
         if _SALARY_COL not in df.columns:
             raise ValueError(f"Required target column '{_SALARY_COL}' not found")
 
         fx = load_fx_rates(ctx.output_dir)
         ctx.diag["fx_rates_source"] = fx.source
 
-        raw_series = df[_SALARY_COL].astype(object)
+        results = df[_SALARY_COL].apply(lambda x: _calculate_rub_salary(x, fx.rates))
 
-        target = np.full(shape=(len(df),), fill_value=np.nan, dtype=float)
-        curr_out = np.array([""] * len(df), dtype=object)
+        df["target_salary_rub"] = [r[0] for r in results]
+        df["salary_currency"] = [r[1] for r in results]
 
-        for i, val in enumerate(raw_series):
-            if not isinstance(val, str):
-                continue
-            s = normalize_spaces(val)
-            if not s:
-                continue
-            t = safe_lower(s)
-            if "договор" in t or "по договор" in t or "negotiable" in t:
-                continue
-
-            cur = _detect_currency(s)
-            if cur is None:
-                cur = "RUB"
-
-            nums = _extract_numbers(s)
-            if not nums:
-                continue
-
-            amount = float(nums[0])
-            if len(nums) >= 2:
-                amount = (nums[0] + nums[1]) / 2.0
-
-            if "тыс" in t or "k" in t:
-                amount *= 1000.0
-
-            rate = fx.rates.get(cur)
-            if rate is None:
-                continue
-
-            rub = amount * float(rate)
-            if rub <= 0:
-                continue
-
-            target[i] = rub
-            curr_out[i] = cur
-
-        df["salary_currency"] = curr_out
-        df["target_salary_rub"] = target
-
-        nan_mask = np.isnan(target)
+        target = df["target_salary_rub"]
+        nan_mask = target.isna()
         ctx.diag["rows_with_nan_target"] = int(nan_mask.sum())
         if nan_mask.any():
             ex = df.loc[nan_mask, [_SALARY_COL, "salary_currency"]].head(20).copy()

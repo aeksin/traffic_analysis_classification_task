@@ -1,3 +1,5 @@
+"""Обработчик определения наличия автомобиля по текстовому описанию."""
+
 import logging
 
 from ..context import PipelineContext

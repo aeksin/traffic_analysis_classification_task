@@ -1,4 +1,4 @@
-from __future__ import annotations
+"""Базовый класс обработчика, реализующий паттерн Chain of Responsibility."""
 
 from abc import ABC, abstractmethod
 from typing import Optional

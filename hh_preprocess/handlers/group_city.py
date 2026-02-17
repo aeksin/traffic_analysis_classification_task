@@ -1,3 +1,5 @@
+"""Обработчик группировки городов по категориям (MSK, SPB, BIG, SMALL)."""
+
 from dataclasses import dataclass
 
 from ..context import PipelineContext

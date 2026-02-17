@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Скрипт для инференса модели (предсказания зарплаты/уровня) на новых данных."""
+
 import argparse
 import logging
 import pickle
