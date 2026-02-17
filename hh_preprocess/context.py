@@ -1,3 +1,5 @@
+"""Контекст пайплайна для хранения состояния обработки и передачи данных между шагами."""
+
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any

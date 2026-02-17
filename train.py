@@ -1,3 +1,5 @@
+"""Скрипт для обучения моделей, подбора гиперпараметров и сохранения артефактов."""
+
 import argparse
 import json
 import logging
@@ -11,14 +13,8 @@ from sklearn.exceptions import ConvergenceWarning
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import GridSearchCV, train_test_split
 
-from models import (
-    ElasticNetRegressor,
-    LassoRegressor,
-    LinearRegressor,
-    RandomForestWrapper,
-    RidgeRegressor,
-    XGBoostWrapper,
-)
+from models import (ElasticNetRegressor, LassoRegressor, LinearRegressor,
+                    RandomForestWrapper, RidgeRegressor, XGBoostWrapper)
 from models.base import BaseModel
 
 warnings.filterwarnings("ignore", category=UserWarning)

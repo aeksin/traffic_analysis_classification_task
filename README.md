@@ -3,10 +3,17 @@
 Проект реализует пайплайн предобработки датасета HeadHunter
 с использованием паттерна проектирования «Цепочка ответственности».
 
+## Настройка окружения
+Проект использует стандартный `venv`.
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
 ## Запуск
 
 ```bash
-python app path/to/hh.csv
+python app.py path/to/hh.csv
 ```
 
 В директории с входным файлом будут созданы:
@@ -18,7 +25,7 @@ python app path/to/hh.csv
 - `hh_preprocess/handlers` — обработчики цепочки
 - `hh_preprocess/context.py` — контекст пайплайна
 - `hh_preprocess/pipeline.py` — сборка цепочки
-- `app` — CLI-точка входа
+- `app.py` — CLI-точка входа
 ## Линейная регрессия и ML-моделирование
 
 В рамках второй части задачи реализован модуль обучения моделей (Training) и применения их для прогнозирования зарплаты (Inference).

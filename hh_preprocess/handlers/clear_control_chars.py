@@ -1,7 +1,10 @@
+"""Обработчик очистки текста от управляющих символов (BOM, NBSP и др.)."""
+
 import re
 
 import pandas as pd
-from pandas.api.types import is_categorical_dtype, is_object_dtype, is_string_dtype
+from pandas.api.types import (is_categorical_dtype, is_object_dtype,
+                              is_string_dtype)
 
 from ..context import PipelineContext
 from .base import Handler

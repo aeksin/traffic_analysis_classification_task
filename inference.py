@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Скрипт для инференса модели (предсказания зарплаты/уровня) на новых данных."""
+
 import argparse
 import logging
 import pickle
@@ -9,14 +11,8 @@ from typing import List
 import numpy as np
 
 try:
-    from models import (
-        ElasticNetRegressor,
-        LassoRegressor,
-        LinearRegressor,
-        RandomForestWrapper,
-        RidgeRegressor,
-        XGBoostWrapper,
-    )
+    from models import (ElasticNetRegressor, LassoRegressor, LinearRegressor,
+                        RandomForestWrapper, RidgeRegressor, XGBoostWrapper)
 except ImportError as e:
     print(f"[CRITICAL] Не удалось импортировать классы моделей: {e}", file=sys.stderr)
     print(

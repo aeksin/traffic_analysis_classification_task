@@ -1,4 +1,4 @@
-from __future__ import annotations
+"""Обработчик финализации данных, обработки пропусков и подготовки numpy-массивов."""
 
 import logging
 

@@ -1,3 +1,5 @@
+"""Обработчик генерации векторных представлений (embeddings) текста с помощью LLM."""
+
 import logging
 import os
 

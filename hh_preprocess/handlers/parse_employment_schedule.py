@@ -1,3 +1,5 @@
+"""Обработчик парсинга типа занятости и графика работы."""
+
 import logging
 
 from ..context import PipelineContext

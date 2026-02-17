@@ -1,10 +1,137 @@
+"""Обработчик категоризации названия должности (mapping на укрупненные группы)."""
+
 import logging
+from typing import Dict, List
 
 from ..context import PipelineContext
 from ..utils.text import safe_lower
 from .base import Handler
 
 logger = logging.getLogger(__name__)
+
+_UNKNOWN = "Не указано"
+
+_KEYWORDS: Dict[str, List[str]] = {
+    "Системный администратор": [
+        "системный администратор",
+        "system administrator",
+        "sysadmin",
+    ],
+    "DevOps/SRE": ["devops", "sre", "site reliability"],
+    "Администратор баз данных": [
+        "dba",
+        "администратор баз данных",
+        "database administrator",
+    ],
+    "Data Scientist/ML": ["data scientist", "ds ", "ml engineer", "machine learning"],
+    "Аналитик": ["аналитик данных", "data analyst", "bi analyst", "business analyst"],
+    "Тестировщик": ["тестировщик", "qa", "quality assurance"],
+    "Программист/Разработчик": [
+        "разработчик",
+        "программист",
+        "developer",
+        "software engineer",
+        "backend",
+        "frontend",
+        "fullstack",
+        "ios",
+        "android",
+        "java",
+        "python",
+        "c++",
+        "golang",
+        "php",
+        "javascript",
+        "node.js",
+        "react",
+        "vue",
+        "1c",
+        "1с",
+        "unity",
+    ],
+    "IT-специалист": ["it", "айти"],
+    "Менеджер проектов/Продукта": [
+        "product manager",
+        "product owner",
+        "продакт",
+        "product",
+        "проектный менеджер",
+        "project manager",
+        "pm ",
+    ],
+    "Маркетинг/PR/Контент": [
+        "маркетолог",
+        "marketing",
+        "smm",
+        "таргет",
+        "seo",
+        "контент",
+        "pr",
+        "copywriter",
+        "копирайтер",
+    ],
+    "Продажи/Клиенты": [
+        "продаж",
+        "sales",
+        "account manager",
+        "менеджер по работе с клиентами",
+        "клиентами",
+        "торговый представитель",
+        "кассир",
+    ],
+    "Финансы/Бухгалтерия": [
+        "бухгалтер",
+        "accountant",
+        "финанс",
+        "экономист",
+        "аудитор",
+        "финансовый",
+    ],
+    "HR/Рекрутер": ["hr", "рекрутер", "подбор персонала", "recruiter", "talent"],
+    "Юрист": ["юрист", "lawyer", "legal"],
+    "Логистика/Склад/Транспорт": [
+        "логист",
+        "logistics",
+        "склад",
+        "warehouse",
+        "курьер",
+        "доставка",
+        "водитель",
+        "driver",
+    ],
+    "Дизайн/Креатив": [
+        "дизайнер",
+        "designer",
+        "ux",
+        "ui",
+        "graphic",
+        "графический",
+        "иллюстратор",
+        "illustrator",
+        "3d",
+        "2d",
+    ],
+    "Инженерия/Производство/Строительство": [
+        "инженер",
+        "engineer",
+        "технолог",
+        "электрик",
+        "mechanic",
+        "механик",
+        "строител",
+        "construction",
+    ],
+    "Административный персонал": [
+        "секретарь",
+        "assistant",
+        "ассистент",
+        "офис-менеджер",
+        "администратор",
+        "reception",
+    ],
+    "Оператор": ["оператор", "operator"],
+    "Специалист (общий)": ["специалист", "specialist"],
+}
 
 
 def categorize_job_title(title: object) -> str:
@@ -22,184 +149,11 @@ def categorize_job_title(title: object) -> str:
     """
     t = safe_lower(title)
     if not t:
-        return "Не указано"
+        return _UNKNOWN
 
-    if "системный администратор" in t or "system administrator" in t or "sysadmin" in t:
-        return "Системный администратор"
-    if "devops" in t or "sre" in t or "site reliability" in t:
-        return "DevOps/SRE"
-    if "dba" in t or "администратор баз данных" in t or "database administrator" in t:
-        return "Администратор баз данных"
-    if any(
-        k in t for k in ["data scientist", "ds ", "ml engineer", "machine learning"]
-    ):
-        return "Data Scientist/ML"
-    if any(
-        k in t
-        for k in ["аналитик данных", "data analyst", "bi analyst", "business analyst"]
-    ):
-        return "Аналитик"
-    if any(k in t for k in ["тестировщик", "qa", "quality assurance"]):
-        return "Тестировщик"
-    if any(
-        k in t
-        for k in [
-            "разработчик",
-            "программист",
-            "developer",
-            "software engineer",
-            "backend",
-            "frontend",
-            "fullstack",
-            "ios",
-            "android",
-            "java",
-            "python",
-            "c++",
-            "golang",
-            "php",
-            "javascript",
-            "node.js",
-            "react",
-            "vue",
-            "1c",
-            "1с",
-            "unity",
-        ]
-    ):
-        return "Программист/Разработчик"
-    if "it" in t or "айти" in t:
-        return "IT-специалист"
-
-    if any(
-        k in t
-        for k in [
-            "product manager",
-            "product owner",
-            "продакт",
-            "product",
-            "проектный менеджер",
-            "project manager",
-            "pm ",
-        ]
-    ):
-        return "Менеджер проектов/Продукта"
-
-    if any(
-        k in t
-        for k in [
-            "маркетолог",
-            "marketing",
-            "smm",
-            "таргет",
-            "seo",
-            "контент",
-            "pr",
-            "copywriter",
-            "копирайтер",
-        ]
-    ):
-        return "Маркетинг/PR/Контент"
-    if any(
-        k in t
-        for k in [
-            "продаж",
-            "sales",
-            "account manager",
-            "менеджер по работе с клиентами",
-            "клиентами",
-            "торговый представитель",
-            "кассир",
-        ]
-    ):
-        return "Продажи/Клиенты"
-
-    if any(
-        k in t
-        for k in [
-            "бухгалтер",
-            "accountant",
-            "финанс",
-            "экономист",
-            "аудитор",
-            "финансовый",
-        ]
-    ):
-        return "Финансы/Бухгалтерия"
-
-    if any(
-        k in t for k in ["hr", "рекрутер", "подбор персонала", "recruiter", "talent"]
-    ):
-        return "HR/Рекрутер"
-
-    if "юрист" in t or "lawyer" in t or "legal" in t:
-        return "Юрист"
-
-    if any(
-        k in t
-        for k in [
-            "логист",
-            "logistics",
-            "склад",
-            "warehouse",
-            "курьер",
-            "доставка",
-            "водитель",
-            "driver",
-        ]
-    ):
-        return "Логистика/Склад/Транспорт"
-
-    if any(
-        k in t
-        for k in [
-            "дизайнер",
-            "designer",
-            "ux",
-            "ui",
-            "graphic",
-            "графический",
-            "иллюстратор",
-            "illustrator",
-            "3d",
-            "2d",
-        ]
-    ):
-        return "Дизайн/Креатив"
-
-    if any(
-        k in t
-        for k in [
-            "инженер",
-            "engineer",
-            "технолог",
-            "электрик",
-            "mechanic",
-            "механик",
-            "строител",
-            "construction",
-        ]
-    ):
-        return "Инженерия/Производство/Строительство"
-
-    if any(
-        k in t
-        for k in [
-            "секретарь",
-            "assistant",
-            "ассистент",
-            "офис-менеджер",
-            "администратор",
-            "reception",
-        ]
-    ):
-        return "Административный персонал"
-
-    if "оператор" in t or "operator" in t:
-        return "Оператор"
-
-    if "специалист" in t or "specialist" in t:
-        return "Специалист (общий)"
+    for category, keywords in _KEYWORDS.items():
+        if any(k in t for k in keywords):
+            return category
 
     return "Прочее"
 
@@ -216,29 +170,22 @@ class JobCategoryHandler(Handler):
             (c for c in df.columns if "ищет работу на должность" in c.lower()), None
         )
         current_title_col = next(
-            (
-                c
-                for c in df.columns
-                if "нынешняя должность" in c.lower() or "нынешняя должност" in c.lower()
-            ),
-            None,
+            (c for c in df.columns if "нынешняя должност" in c.lower()), None
         )
 
-        if desired_col is None:
-            logger.warning(
-                "Desired job title column not found; job_category='Не указано'"
-            )
-            df["job_category"] = "Не указано"
-        else:
-            df["job_category"] = df[desired_col].map(categorize_job_title)
+        cols_map = {
+            desired_col: "job_category",
+            current_title_col: "current_job_category",
+        }
 
-        if current_title_col is None:
-            logger.warning(
-                "Current job title column not found; current_job_category='Не указано'"
-            )
-            df["current_job_category"] = "Не указано"
-        else:
-            df["current_job_category"] = df[current_title_col].map(categorize_job_title)
+        for col_name, target_name in cols_map.items():
+            if col_name is None:
+                logger.warning(
+                    f"Column for {target_name} not found; using '{_UNKNOWN}'"
+                )
+                df[target_name] = _UNKNOWN
+            else:
+                df[target_name] = df[col_name].map(categorize_job_title)
 
         drop_cols = [c for c in [desired_col, current_title_col] if c is not None]
         df = df.drop(columns=drop_cols, errors="ignore")

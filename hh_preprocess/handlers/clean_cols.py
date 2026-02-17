@@ -1,4 +1,4 @@
-from __future__ import annotations
+"""Обработчик очистки названий колонок от лишних пробелов и артефактов."""
 
 import logging
 
@@ -9,7 +9,24 @@ logger = logging.getLogger(__name__)
 
 
 class CleanColumnsHandler(Handler):
+    """Очистить названия колонок DataFrame.
+
+    Удаляет пробелы по краям названий колонок и удаляет безымянные колонки
+    (например, 'Unnamed: 0'), возникающие при сохранении index в CSV.
+    """
+
     def _handle(self, ctx: PipelineContext) -> PipelineContext:
+        """Выполнить очистку названий колонок.
+
+        Аргументы:
+            ctx: Контекст пайплайна.
+
+        Возвращает:
+            Обновленный контекст с очищенными именами колонок в df.
+
+        Исключения:
+            ValueError: Если DataFrame не загружен в контекст.
+        """
         if ctx.df is None:
             raise ValueError("DataFrame is not loaded")
 

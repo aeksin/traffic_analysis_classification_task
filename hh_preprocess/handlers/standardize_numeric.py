@@ -1,3 +1,5 @@
+"""Обработчик стандартизации числовых признаков."""
+
 from dataclasses import dataclass
 
 import pandas as pd
