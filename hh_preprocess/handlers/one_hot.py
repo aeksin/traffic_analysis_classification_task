@@ -35,6 +35,7 @@ class OneHotEncodeHandler(Handler):
     )
 
     _LEAK_COLS = ["total_experience_months", "experience_sq", "target_salary_rub"]
+
     def _drop_raw_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         """Удалить исходные текстовые колонки."""
         drop_cols = []

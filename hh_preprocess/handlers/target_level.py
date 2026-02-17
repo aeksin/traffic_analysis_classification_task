@@ -1,3 +1,5 @@
+"""Обработчик формирования целевой переменной 'target_level' (Junior/Middle/Senior) на основе опыта и названия должности."""
+
 import logging
 
 import numpy as np
